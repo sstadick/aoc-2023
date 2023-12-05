@@ -24,6 +24,7 @@ impl CommandImpl for Day4a {
     }
 }
 
+#[derive(Debug)]
 pub struct CardScore {
     /// 0-based index to cards, id - 1
     id: usize,
@@ -42,13 +43,13 @@ impl CardScore {
 #[derive(Debug)]
 pub struct Card {
     id: usize,
-    winning_numbers: Vec<usize>,
-    numbers: Vec<usize>,
+    winning_numbers: u128,
+    numbers: u128,
 }
 
 impl Card {
     pub fn count_winning_numbers(&self) -> usize {
-        self.winning_numbers.iter().filter(|w| self.numbers.contains(w)).count()
+        (self.winning_numbers & self.numbers).count_ones() as usize
     }
 
     pub fn score_part_a(&self) -> usize {
@@ -65,19 +66,43 @@ impl Card {
         // Create a running sum
         // Create a queue of all current card copies as (index, num matches)
         // pop one off the queue, add back referencing the original list
-
-        let mut total_cards = 0;
-        let mut queue = VecDeque::from_iter(
-            scored_cards.iter().copied().enumerate().map(|(id, score)| CardScore { id, score }),
-        );
-
-        while let Some(card_score) = queue.pop_front() {
+        let mut total = 0;
+        let mut cache = vec![None; scored_cards.len()];
+        for card_score in
+            scored_cards.iter().enumerate().map(|(id, score)| CardScore { id, score: *score }).rev()
+        {
+            let mut seen = 1; // seen is one since we always count this card once
             for card_index in card_score.get_range() {
-                queue.push_front(CardScore { id: card_index, score: scored_cards[card_index] });
+                if let Some(total_seen_at_index) = &cache[card_index] {
+                    seen += *total_seen_at_index;
+                } else {
+                    // fall back on queue method
+                    let mut total_cards = 0;
+                    let mut queue = VecDeque::new();
+                    queue.push_front(CardScore { id: card_index, score: scored_cards[card_index] });
+                    while let Some(card_score) = queue.pop_front() {
+                        for card_index in card_score.get_range() {
+                            // Add another cache test here
+                            if let Some(total_seen_at_index) = &cache[card_index] {
+                                total_cards += total_seen_at_index;
+                            } else {
+                                queue.push_front(CardScore {
+                                    id: card_index,
+                                    score: scored_cards[card_index],
+                                });
+                            }
+                        }
+                        total_cards += 1;
+                    }
+                    seen += total_cards;
+                    cache[card_index] = Some(total_cards);
+                }
             }
-            total_cards += 1;
+            cache[card_score.id] = Some(seen);
+            total += seen;
         }
-        total_cards
+
+        total
     }
 }
 
@@ -94,17 +119,19 @@ impl FromStr for Card {
             .parse::<usize>()
             .map_err(|_e| ParseError::new(format!("Failed to read game id: `{}`", s)))?;
 
-        let mut winning_numbers = vec![];
+        let mut winning_numbers = 0;
         for t in tokens.by_ref().take_while(|t| *t != "|") {
-            winning_numbers.push(t.parse::<usize>().map_err(|_e| {
-                ParseError::new(format!("Failed to read winning number: `{}`", s))
-            })?);
+            winning_numbers =
+                (1 << t.parse::<u128>().map_err(|_e| {
+                    ParseError::new(format!("Failed to read winning number: `{}`", s))
+                })?) | winning_numbers;
         }
-        let mut numbers = vec![];
+        let mut numbers = 0;
         for t in tokens {
-            numbers.push(t.parse::<usize>().map_err(|_e| {
-                ParseError::new(format!("Failed to read winning number: `{}`", s))
-            })?);
+            numbers =
+                (1 << t.parse::<usize>().map_err(|_e| {
+                    ParseError::new(format!("Failed to read winning number: `{}`", s))
+                })?) | numbers;
         }
 
         Ok(Self { id, winning_numbers, numbers })
