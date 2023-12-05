@@ -1,6 +1,7 @@
 use std::{path::PathBuf, str::FromStr};
 
 use clap::Parser;
+use itertools::Itertools;
 
 use crate::utils::slurp_file;
 
@@ -29,25 +30,50 @@ impl CommandImpl for Day5b {
         ) = self.parse_input_b()?;
 
         let mut location = usize::MAX;
-        for seed in seeds.seed_ranges.into_iter().flatten() {
-            let soil = seed_to_soil.lookup(seed);
-            let fertilizer = soil_to_fertilizer.lookup(soil);
-            let water = fertilizer_to_water.lookup(fertilizer);
-            let light = water_to_light.lookup(water);
-            let temp = light_to_temp.lookup(light);
-            let humidity = temp_to_humidity.lookup(temp);
-            let loc = humidity_to_location.lookup(humidity);
-            if loc < location {
-                location = loc
+        for seed in seeds.seed_ranges.into_iter() {
+            let soils = seed_to_soil.lookup_range(&seed);
+            let loc = soils
+                .into_iter()
+                .filter(|range| range.is_some())
+                .map(|range| range.unwrap())
+                .map(|range| soil_to_fertilizer.lookup_range(&range))
+                .flatten()
+                .filter(|range| range.is_some())
+                .map(|range| range.unwrap())
+                .map(|range| fertilizer_to_water.lookup_range(&range))
+                .flatten()
+                .filter(|range| range.is_some())
+                .map(|range| range.unwrap())
+                .map(|range| water_to_light.lookup_range(&range))
+                .flatten()
+                .filter(|range| range.is_some())
+                .map(|range| range.unwrap())
+                .map(|range| light_to_temp.lookup_range(&range))
+                .flatten()
+                .filter(|range| range.is_some())
+                .map(|range| range.unwrap())
+                .map(|range| temp_to_humidity.lookup_range(&range))
+                .flatten()
+                .filter(|range| range.is_some())
+                .map(|range| range.unwrap())
+                .map(|range| humidity_to_location.lookup_range(&range))
+                .flatten()
+                .filter(|range| range.is_some())
+                .map(|range| range.unwrap())
+                .sorted_by_key(|range| range.start)
+                .next();
+
+            // let fertilizer = soil_to_fertilizer.lookup_range(&soil);
+            // let water = fertilizer_to_water.lookup_range(&fertilizer);
+            // let light = water_to_light.lookup_range(&water);
+            // let temp = light_to_temp.lookup_range(&light);
+            // let humidity = temp_to_humidity.lookup_range(&temp);
+            // let loc = humidity_to_location.lookup_range(&humidity);
+            if loc.clone().unwrap().start < location {
+                location = loc.unwrap().start
             }
         }
-        // println!("seed_to_soil: {:?}", seed_to_soil);
-        // println!("soil_to_fertilizer: {:?}", soil_to_fertilizer);
-        // println!("fert_to_water: {:?}", fertilizer_to_water);
-        // println!("water_to_light: {:?}", water_to_light);
-        // println!("light_to_temp: {:?}", light_to_temp);
-        // println!("temp_to_humid: {:?}", temp_to_humidity);
-        // println!("humi_to_loc: {:?}", humidity_to_location);
+
         println!("Day5b Answer: {}", location);
         Ok(())
     }

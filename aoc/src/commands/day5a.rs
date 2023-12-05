@@ -171,6 +171,16 @@ impl Mapping {
         }
         n
     }
+
+    pub fn lookup_range(&self, range: &Range<usize>) -> [Option<Range<usize>>; 3] {
+        for range in &self.ranges {
+            if let Some(new_range) = range.try_mapping_range(&range.range) {
+                // Couldn't we overlap multiple ranges?
+                return new_range;
+            }
+        }
+        [None, Some(range.clone()), None]
+    }
 }
 
 impl Mapping {
@@ -205,6 +215,26 @@ impl RangeMap {
     pub fn try_mapping(&self, n: usize) -> Option<usize> {
         if self.contains(n) {
             Some((n as isize + self.diff) as usize)
+        } else {
+            None
+        }
+    }
+
+    pub fn try_mapping_range(&self, range: &Range<usize>) -> Option<[Option<Range<usize>>; 3]> {
+        if self.range.start < range.end && self.range.end > range.end {
+            // They overlap, so generate the overlapping range, applying the difference
+            let new_start = std::cmp::max(self.range.start, range.start);
+            let new_stop = std::cmp::min(self.range.end, range.end);
+
+            let extra_start_range =
+                if range.start < new_start { Some(range.start..new_start) } else { None };
+
+            let extra_end_range =
+                if range.end > new_stop { Some(new_stop..range.end) } else { None };
+
+            let intersection =
+                (new_start as isize + self.diff) as usize..(new_stop as isize + self.diff) as usize;
+            Some([extra_start_range, Some(intersection), extra_end_range])
         } else {
             None
         }
