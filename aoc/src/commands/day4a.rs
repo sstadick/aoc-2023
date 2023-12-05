@@ -1,4 +1,9 @@
-use std::{collections::VecDeque, ops::Range, path::PathBuf, str::FromStr};
+use std::{
+    collections::{HashSet, VecDeque},
+    ops::Range,
+    path::PathBuf,
+    str::FromStr,
+};
 
 use clap::Parser;
 
@@ -42,13 +47,14 @@ impl CardScore {
 #[derive(Debug)]
 pub struct Card {
     id: usize,
-    winning_numbers: Vec<usize>,
-    numbers: Vec<usize>,
+    winning_numbers: HashSet<usize>,
+    numbers: HashSet<usize>,
 }
 
 impl Card {
     pub fn count_winning_numbers(&self) -> usize {
-        self.winning_numbers.iter().filter(|w| self.numbers.contains(w)).count()
+        // self.winning_numbers.iter().filter(|w| self.numbers.contains(w)).count()
+        self.winning_numbers.intersection(&self.numbers).count()
     }
 
     pub fn score_part_a(&self) -> usize {
@@ -94,15 +100,15 @@ impl FromStr for Card {
             .parse::<usize>()
             .map_err(|_e| ParseError::new(format!("Failed to read game id: `{}`", s)))?;
 
-        let mut winning_numbers = vec![];
+        let mut winning_numbers = HashSet::new();
         for t in tokens.by_ref().take_while(|t| *t != "|") {
-            winning_numbers.push(t.parse::<usize>().map_err(|_e| {
+            winning_numbers.insert(t.parse::<usize>().map_err(|_e| {
                 ParseError::new(format!("Failed to read winning number: `{}`", s))
             })?);
         }
-        let mut numbers = vec![];
+        let mut numbers = HashSet::new();
         for t in tokens {
-            numbers.push(t.parse::<usize>().map_err(|_e| {
+            numbers.insert(t.parse::<usize>().map_err(|_e| {
                 ParseError::new(format!("Failed to read winning number: `{}`", s))
             })?);
         }
