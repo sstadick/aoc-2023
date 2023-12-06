@@ -3,6 +3,7 @@ use std::{
     fmt::{self, Debug},
     fs::File,
     io::{BufRead, BufReader, Read},
+    marker::PhantomData,
     path::Path,
     str::FromStr,
 };
@@ -33,19 +34,38 @@ where
 
 /// Slurp file will try to parse the string into `T` as long as T implements FromStr
 #[allow(clippy::missing_errors_doc)]
-pub fn slurp_file<P, T>(path: P) -> Result<Vec<T>, SlurpError>
+pub fn slurp_file<P, T>(path: P) -> impl Iterator<Item = Result<T, <T as FromStr>::Err>>
 where
     P: AsRef<Path>,
     T: FromStr,
     <T as FromStr>::Err: Error,
 {
-    let reader = File::open(&path).map(BufReader::new).expect("Failed to open file");
-    let mut result = vec![];
-    for (i, line) in reader.lines().enumerate() {
-        let line = line.map_err(|e| SlurpError { line: i, msg: e.to_string() })?;
-        result.push(line.parse::<T>().map_err(|e| SlurpError { line: i, msg: e.to_string() })?);
+    let reader =
+        BufReader::new(File::open(&path).map(BufReader::new).expect("Failed to open file"));
+
+    FromStrIter { reader: reader, buffer: String::new(), phantom: PhantomData }
+}
+
+pub struct FromStrIter<R: BufRead, T: FromStr> {
+    reader: R,
+    buffer: String,
+    phantom: PhantomData<T>,
+}
+
+impl<R: BufRead, T: FromStr> Iterator for FromStrIter<R, T> {
+    type Item = Result<T, <T as FromStr>::Err>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.buffer.clear();
+        if let Ok(size) = self.reader.read_line(&mut self.buffer) {
+            if size == 0 {
+                return None;
+            }
+            Some(self.buffer.trim_end().parse::<T>())
+        } else {
+            None
+        }
     }
-    Ok(result)
 }
 
 #[derive(Debug, Clone)]
