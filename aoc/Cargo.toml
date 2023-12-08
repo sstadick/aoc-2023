@@ -9,3 +9,4 @@ edition = "2021"
 clap = { version = "4.0.29", features = ["derive"] }
 enum_dispatch = "0.3.8"
 itertools = "0.12.0"
+rayon = "1.8.0"
