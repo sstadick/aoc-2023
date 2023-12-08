@@ -13,6 +13,8 @@ pub mod day6a;
 pub mod day6b;
 pub mod day7a;
 pub mod day7b;
+pub mod day8a;
+pub mod day8b;
 
 use std::error::Error;
 
