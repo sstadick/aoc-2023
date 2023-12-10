@@ -1,4 +1,6 @@
 pub mod day0;
+pub mod day10a;
+pub mod day10b;
 pub mod day1a;
 pub mod day1b;
 pub mod day2a;
